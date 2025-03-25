@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Outlet } from "react-router-dom";
 import { 
@@ -20,7 +19,7 @@ import {
   HomeIcon, 
   BarChartIcon, 
   BellIcon, 
-  BankIcon, 
+  BuildingIcon, 
   SettingsIcon, 
   UserIcon, 
   ArrowRightCircleIcon,
@@ -69,7 +68,7 @@ const DashboardSidebar = () => {
     <Sidebar>
       <SidebarHeader className="p-4">
         <Link to="/" className="flex items-center space-x-2">
-          <BankIcon className="h-6 w-6 text-primary" />
+          <BuildingIcon className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">FinanceTrack</span>
         </Link>
       </SidebarHeader>
@@ -91,7 +90,7 @@ const DashboardSidebar = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild className={cn(isActive("/transactions") && "bg-sidebar-accent text-primary")}>
                   <Link to="/transactions">
-                    <BankIcon className="h-4 w-4" />
+                    <BuildingIcon className="h-4 w-4" />
                     <span>Transactions</span>
                   </Link>
                 </SidebarMenuButton>

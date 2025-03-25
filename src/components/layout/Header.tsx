@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import {
   UserIcon,
   HomeIcon,
   BarChartIcon,
-  BankIcon,
+  BuildingIcon,
   SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -79,12 +78,11 @@ const Header = () => {
       <div className="container mx-auto px-4 flex items-center justify-between">
         <div className="flex items-center">
           <Link to="/" className="flex items-center space-x-2">
-            <BankIcon className="h-8 w-8 text-primary" />
+            <BuildingIcon className="h-8 w-8 text-primary" />
             <span className="font-bold text-xl">FinanceTrack</span>
           </Link>
         </div>
         
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-1">
           <NavItem href="/" icon={<HomeIcon size={18} />} active={isActive("/")}>
             Home
@@ -92,7 +90,7 @@ const Header = () => {
           <NavItem href="/dashboard" icon={<BarChartIcon size={18} />} active={isActive("/dashboard")}>
             Dashboard
           </NavItem>
-          <NavItem href="/transactions" icon={<BankIcon size={18} />} active={isActive("/transactions")}>
+          <NavItem href="/transactions" icon={<BuildingIcon size={18} />} active={isActive("/transactions")}>
             Transactions
           </NavItem>
           <NavItem href="/notifications" icon={<BellIcon size={18} />} active={isActive("/notifications")}>
@@ -119,7 +117,6 @@ const Header = () => {
           </Button>
         </div>
         
-        {/* Mobile Menu Button */}
         <button
           className="md:hidden flex items-center"
           onClick={toggleMobileMenu}
@@ -133,7 +130,6 @@ const Header = () => {
         </button>
       </div>
       
-      {/* Mobile Menu */}
       <div
         className={cn(
           "fixed inset-0 z-40 bg-background/95 backdrop-blur-sm md:hidden transform transition-transform duration-300 ease-in-out",
@@ -142,7 +138,7 @@ const Header = () => {
       >
         <div className="flex flex-col h-full pt-20 p-6 space-y-6">
           <Link to="/" className="flex items-center space-x-2 mb-8">
-            <BankIcon className="h-8 w-8 text-primary" />
+            <BuildingIcon className="h-8 w-8 text-primary" />
             <span className="font-bold text-xl">FinanceTrack</span>
           </Link>
           
@@ -153,7 +149,7 @@ const Header = () => {
             <NavItem href="/dashboard" icon={<BarChartIcon size={20} />} active={isActive("/dashboard")}>
               Dashboard
             </NavItem>
-            <NavItem href="/transactions" icon={<BankIcon size={20} />} active={isActive("/transactions")}>
+            <NavItem href="/transactions" icon={<BuildingIcon size={20} />} active={isActive("/transactions")}>
               Transactions
             </NavItem>
             <NavItem href="/notifications" icon={<BellIcon size={20} />} active={isActive("/notifications")}>

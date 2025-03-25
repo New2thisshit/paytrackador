@@ -1,16 +1,15 @@
-
 import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/layout/Header";
-import { ArrowRightIcon, BankIcon, BellIcon, CheckIcon, CloudIcon, CreditCardIcon, DatabaseIcon, LockIcon, ShieldIcon } from "lucide-react";
+import { ArrowRightIcon, BuildingIcon, BellIcon, CheckIcon, CloudIcon, CreditCardIcon, DatabaseIcon, LockIcon, ShieldIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const features = [
   {
-    icon: <BankIcon className="h-5 w-5" />,
+    icon: <BuildingIcon className="h-5 w-5" />,
     title: "Bank Synchronization",
     description: "Connect multiple bank accounts and automatically import transactions in real-time."
   },
@@ -278,7 +277,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <BankIcon className="h-6 w-6 text-primary mr-2" />
+                <BuildingIcon className="h-6 w-6 text-primary mr-2" />
                 <span className="font-bold text-lg">FinanceTrack</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">

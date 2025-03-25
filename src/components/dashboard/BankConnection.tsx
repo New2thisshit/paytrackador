@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowRightIcon, 
-  BankIcon, 
+  BuildingIcon, 
   CheckCircleIcon, 
   ChevronsUpDownIcon, 
   CreditCardIcon, 
@@ -73,7 +72,6 @@ const BankConnection = () => {
     
     setIsConnecting(true);
     
-    // Simulate API call to connect bank
     setTimeout(() => {
       setIsConnecting(false);
       setIsDialogOpen(false);
@@ -89,7 +87,6 @@ const BankConnection = () => {
   const handleSyncNow = (bankId: string) => {
     setIsSyncing(true);
     
-    // Simulate API call to sync bank data
     setTimeout(() => {
       setIsSyncing(false);
       
@@ -118,7 +115,7 @@ const BankConnection = () => {
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center">
-          <BankIcon className="h-5 w-5 mr-2 text-primary" />
+          <BuildingIcon className="h-5 w-5 mr-2 text-primary" />
           Bank Connections
         </CardTitle>
         <CardDescription>
@@ -147,7 +144,7 @@ const BankConnection = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground">
-                      <BankIcon className="h-6 w-6" />
+                      <BuildingIcon className="h-6 w-6" />
                     </div>
                     
                     <div>
@@ -302,7 +299,7 @@ const BankConnection = () => {
             <Dialog>
               <DialogTrigger asChild>
                 <Button className="w-full mt-4">
-                  <BankIcon className="h-4 w-4 mr-2" />
+                  <BuildingIcon className="h-4 w-4 mr-2" />
                   Connect Another Bank
                 </Button>
               </DialogTrigger>
@@ -320,7 +317,7 @@ const BankConnection = () => {
                       placeholder="Search for your bank..."
                       className="pl-10"
                     />
-                    <BankIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <BuildingIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
                   
                   <div className="mt-4 space-y-2">
@@ -333,7 +330,7 @@ const BankConnection = () => {
                       >
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded bg-muted/50 flex items-center justify-center mr-3">
-                            <BankIcon className="h-4 w-4" />
+                            <BuildingIcon className="h-4 w-4" />
                           </div>
                           <span>{bank.name}</span>
                         </div>
