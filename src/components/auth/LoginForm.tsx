@@ -1,5 +1,5 @@
+
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,40 +7,63 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { BuildingIcon, KeyIcon, LockIcon, MailIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signupSchema = loginSchema.extend({
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  path: ["confirmPassword"],
+  message: "Passwords do not match",
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+type SignupFormValues = z.infer<typeof signupSchema>;
 
 const LoginForm = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-  const navigate = useNavigate();
+  const { signIn, signUp, loading } = useAuth();
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      if (email && password) {
-        toast({
-          title: isSignUp ? "Account created" : "Signed in successfully",
-          description: isSignUp 
-            ? "Your account has been created. You can now sign in." 
-            : "Welcome back to FinanceTrack!",
-        });
-        
-        navigate("/dashboard");
+  const loginForm = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const signupForm = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const onSubmit = async (values: LoginFormValues | SignupFormValues) => {
+    try {
+      if (isSignUp) {
+        await signUp(values.email, values.password);
       } else {
-        toast({
-          title: "Invalid credentials",
-          description: "Please check your email and password.",
-          variant: "destructive",
-        });
+        await signIn(values.email, values.password);
       }
-    }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -61,107 +84,220 @@ const LoginForm = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
-                required
+        {isSignUp ? (
+          <Form {...signupForm}>
+            <form onSubmit={signupForm.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={signupForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="name@company.com"
+                          type="email"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </FormControl>
+                      <MailIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <MailIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              {!isSignUp && (
-                <a href="#" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </a>
-              )}
-            </div>
-            <div className="relative">
-              <Input
-                id="password"
-                type="password"
-                placeholder={isSignUp ? "Create a password" : "Enter password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
-                required
+              
+              <FormField
+                control={signupForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="Create a password"
+                          type="password"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </FormControl>
+                      <LockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <LockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            </div>
-          </div>
-          
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Confirm your password"
-                  className="pl-10"
-                  required
-                />
-                <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
-          )}
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox id="remember" />
-            <label
-              htmlFor="remember"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Remember me
-            </label>
-          </div>
-          
-          <Button 
-            type="submit" 
-            className="w-full transition-all duration-300"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <div className="flex items-center">
-                <svg 
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  fill="none" 
-                  viewBox="0 0 24 24"
+              
+              <FormField
+                control={signupForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="Confirm your password"
+                          type="password"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </FormControl>
+                      <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox id="remember" />
+                <label
+                  htmlFor="remember"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  <circle 
-                    className="opacity-25" 
-                    cx="12" 
-                    cy="12" 
-                    r="10" 
-                    stroke="currentColor" 
-                    strokeWidth="4"
-                  ></circle>
-                  <path 
-                    className="opacity-75" 
-                    fill="currentColor" 
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                {isSignUp ? "Creating account..." : "Signing in..."}
+                  Remember me
+                </label>
               </div>
-            ) : (
-              <>{isSignUp ? "Create account" : "Sign in"}</>
-            )}
-          </Button>
-        </form>
+              
+              <Button 
+                type="submit" 
+                className="w-full transition-all duration-300"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <svg 
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle 
+                        className="opacity-25" 
+                        cx="12" 
+                        cy="12" 
+                        r="10" 
+                        stroke="currentColor" 
+                        strokeWidth="4"
+                      ></circle>
+                      <path 
+                        className="opacity-75" 
+                        fill="currentColor" 
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Creating account...
+                  </div>
+                ) : (
+                  <>Create account</>
+                )}
+              </Button>
+            </form>
+          </Form>
+        ) : (
+          <Form {...loginForm}>
+            <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={loginForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="name@company.com"
+                          type="email"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </FormControl>
+                      <MailIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={loginForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Password</FormLabel>
+                      <a href="#" className="text-sm text-primary hover:underline">
+                        Forgot password?
+                      </a>
+                    </div>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="Enter password"
+                          type="password"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </FormControl>
+                      <LockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox id="remember" />
+                <label
+                  htmlFor="remember"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Remember me
+                </label>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full transition-all duration-300"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <svg 
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle 
+                        className="opacity-25" 
+                        cx="12" 
+                        cy="12" 
+                        r="10" 
+                        stroke="currentColor" 
+                        strokeWidth="4"
+                      ></circle>
+                      <path 
+                        className="opacity-75" 
+                        fill="currentColor" 
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Signing in...
+                  </div>
+                ) : (
+                  <>Sign in</>
+                )}
+              </Button>
+            </form>
+          </Form>
+        )}
       </CardContent>
+      
       <CardFooter className="flex flex-col space-y-4">
         <div className="relative w-full">
           <div className="absolute inset-0 flex items-center">
