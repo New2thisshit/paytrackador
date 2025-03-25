@@ -30,9 +30,21 @@ export const supabase = supabaseUrl && supabaseAnonKey
             order: () => Promise.resolve({ data: [], error: null }),
             single: () => Promise.resolve({ data: null, error: null }),
           }),
-          delete: () => ({ eq: () => Promise.resolve({ error: null }) }),
-          insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
-          update: () => ({ eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }) }),
+        }),
+        delete: () => ({
+          eq: () => Promise.resolve({ error: null })
+        }),
+        insert: () => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: null, error: null })
+          })
+        }),
+        update: () => ({
+          eq: () => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: null, error: null })
+            })
+          })
         }),
       }),
     };
