@@ -12,42 +12,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Create a mock client for development if credentials are missing
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : {
-      auth: {
-        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-        signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Supabase credentials not configured') }),
-        signUp: () => Promise.resolve({ data: null, error: new Error('Supabase credentials not configured') }),
-        signOut: () => Promise.resolve({ error: null }),
-        resetPasswordForEmail: () => Promise.resolve({ error: null }),
-      },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
-            single: () => Promise.resolve({ data: null, error: null }),
-          }),
-        }),
-        delete: () => ({
-          eq: () => Promise.resolve({ error: null })
-        }),
-        insert: () => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: null, error: null })
-          })
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: null, error: null })
-            })
-          })
-        }),
-      }),
-    };
+// Create the Supabase client
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder-url.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
 
 export type User = {
   id: string;

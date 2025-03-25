@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase, User } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -21,42 +22,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Set user from session data
+  const setUserFromSession = (session: Session | null) => {
+    if (session?.user) {
+      setUser({
+        id: session.user.id,
+        email: session.user.email || '',
+        created_at: session.user.created_at || '',
+      });
+    } else {
+      setUser(null);
+    }
+  };
+
   useEffect(() => {
     // Check for active session on component mount
     const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Error fetching session:', error);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error fetching session:', error);
+          return;
+        }
+        
+        setUserFromSession(data.session);
+      } catch (error) {
+        console.error('Session check failed:', error);
+      } finally {
         setLoading(false);
-        return;
       }
-      
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          created_at: session.user.created_at || '',
-        });
-      }
-      
-      setLoading(false);
     };
     
     checkSession();
 
     // Set up listener for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            created_at: session.user.created_at || '',
-          });
-        } else {
-          setUser(null);
-        }
+      async (_event, session) => {
+        setUserFromSession(session);
         setLoading(false);
       }
     );
@@ -73,11 +76,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       
-      navigate('/dashboard');
-      toast({
-        title: "Signed in successfully",
-        description: "Welcome back to FinanceTrack!",
-      });
+      if (data.user) {
+        navigate('/dashboard');
+        toast({
+          title: "Signed in successfully",
+          description: "Welcome back to FinanceTrack!",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error signing in",
@@ -136,7 +141,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       
       if (error) throw error;
       
