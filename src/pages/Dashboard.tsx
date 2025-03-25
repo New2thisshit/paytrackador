@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircleIcon, ArrowRightIcon, BankIcon, CalendarIcon, LucideIcon, PieChartIcon, TrendingUpIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowRightIcon, BuildingIcon, CalendarIcon, LucideIcon, PieChartIcon, TrendingUpIcon } from "lucide-react";
 
 // Sample recent transactions
 const recentTransactions = [
@@ -114,7 +114,7 @@ const Dashboard = () => {
               <QuickAction 
                 title="Connect Bank" 
                 description="Link another account" 
-                icon={BankIcon}
+                icon={BuildingIcon}
                 href="/connect-bank"
               />
               <QuickAction 
