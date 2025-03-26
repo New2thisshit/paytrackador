@@ -17,11 +17,13 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-const signupSchema = loginSchema.extend({
-  confirmPassword: z.string(),
+const signupSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Confirm password must be at least 6 characters"),
 }).refine(data => data.password === data.confirmPassword, {
-  path: ["confirmPassword"],
   message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -52,9 +54,11 @@ const LoginForm = () => {
   const onSubmit = async (values: LoginFormValues | SignupFormValues) => {
     try {
       if (isSignUp) {
-        await signUp(values.email, values.password);
+        const signupValues = values as SignupFormValues;
+        await signUp(signupValues.email, signupValues.password);
       } else {
-        await signIn(values.email, values.password);
+        const loginValues = values as LoginFormValues;
+        await signIn(loginValues.email, loginValues.password);
       }
     } catch (error: any) {
       toast({
@@ -70,6 +74,16 @@ const LoginForm = () => {
       await signInWithSocialProvider(provider);
     } catch (error: any) {
       console.error("Social sign in error:", error);
+    }
+  };
+
+  const switchFormMode = () => {
+    setIsSignUp(!isSignUp);
+    // Reset form errors when switching modes
+    if (isSignUp) {
+      loginForm.reset();
+    } else {
+      signupForm.reset();
     }
   };
 
@@ -344,7 +358,7 @@ const LoginForm = () => {
               Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => setIsSignUp(false)}
+                onClick={switchFormMode}
                 className="text-primary hover:underline font-medium"
               >
                 Sign in
@@ -355,7 +369,7 @@ const LoginForm = () => {
               Don't have an account?{" "}
               <button
                 type="button"
-                onClick={() => setIsSignUp(true)}
+                onClick={switchFormMode}
                 className="text-primary hover:underline font-medium"
               >
                 Create account
