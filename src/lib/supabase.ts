@@ -1,41 +1,13 @@
 
 // This file is now deprecated in favor of using the Lovable Supabase integration
 // Import the supabase client from '@/integrations/supabase/client' instead
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, Category, Transaction } from '@/integrations/supabase/client';
 
-export { supabase };
+export { supabase, Category, Transaction };
 
 export type User = {
   id: string;
   email: string;
-  created_at: string;
-};
-
-export type Transaction = {
-  id: string;
-  user_id: string;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-  status: 'completed' | 'pending';
-  created_at: string;
-};
-
-export type Category = {
-  id: string;
-  user_id: string;
-  name: string;
-  type: 'income' | 'expense';
-  created_at: string;
-};
-
-export type Account = {
-  id: string;
-  user_id: string;
-  name: string;
-  type: 'checking' | 'savings' | 'credit' | 'investment';
-  balance: number;
   created_at: string;
 };
 
@@ -45,5 +17,14 @@ export type Budget = {
   category_id: string;
   amount: number;
   period: 'monthly' | 'yearly';
+  created_at: string;
+};
+
+export type Account = {
+  id: string;
+  user_id: string;
+  name: string;
+  type: 'checking' | 'savings' | 'credit' | 'investment';
+  balance: number;
   created_at: string;
 };

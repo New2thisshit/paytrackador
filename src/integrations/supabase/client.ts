@@ -9,6 +9,26 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Define custom types for our application to use with TypeScript
+export type Category = {
+  id: string;
+  user_id: string;
+  name: string;
+  type: 'income' | 'expense';
+  created_at: string;
+};
+
+export type Transaction = {
+  id: string;
+  user_id: string;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  status: 'completed' | 'pending';
+  created_at: string;
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
