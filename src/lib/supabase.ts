@@ -1,22 +1,9 @@
 
-import { createClient } from '@supabase/supabase-js';
+// This file is now deprecated in favor of using the Lovable Supabase integration
+// Import the supabase client from '@/integrations/supabase/client' instead
+import { supabase } from '@/integrations/supabase/client';
 
-// Initialize the Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Check if we have valid Supabase credentials
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    'Supabase URL or Anonymous Key is missing. Please set the VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.'
-  );
-}
-
-// Create the Supabase client
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder-url.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
-);
+export { supabase };
 
 export type User = {
   id: string;

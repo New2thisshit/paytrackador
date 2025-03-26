@@ -1,9 +1,9 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase, User } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { Session } from '@supabase/supabase-js';
+import { Session, User, Provider } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  signInWithSocialProvider: (provider: Provider) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,51 +23,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Set user from session data
-  const setUserFromSession = (session: Session | null) => {
-    if (session?.user) {
-      setUser({
-        id: session.user.id,
-        email: session.user.email || '',
-        created_at: session.user.created_at || '',
-      });
-    } else {
-      setUser(null);
-    }
-  };
-
   useEffect(() => {
-    // Check for active session on component mount
-    const checkSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error fetching session:', error);
-          return;
-        }
-        
-        setUserFromSession(data.session);
-      } catch (error) {
-        console.error('Session check failed:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkSession();
-
-    // Set up listener for auth state changes
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUserFromSession(session);
+      (_event, session) => {
+        setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -160,8 +132,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signInWithSocialProvider = async (provider: Provider) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({ 
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        }
+      });
+      
+      if (error) throw error;
+      
+    } catch (error: any) {
+      toast({
+        title: "Error signing in",
+        description: error.message,
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
+    // Note: We don't set loading to false here because the user will be redirected
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      signIn, 
+      signUp, 
+      signOut, 
+      resetPassword,
+      signInWithSocialProvider 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -174,3 +177,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export type { User };
