@@ -21,7 +21,12 @@ export const useTransactions = (userId: string | undefined) => {
         .order('date', { ascending: false });
         
       if (error) throw error;
-      return data || [];
+      
+      // Ensure the data conforms to the Transaction type
+      return (data as any[]).map(item => ({
+        ...item,
+        status: item.status as 'completed' | 'pending'
+      })) as Transaction[];
     },
     enabled: !!userId,
   });

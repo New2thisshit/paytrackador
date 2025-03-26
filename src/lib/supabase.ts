@@ -1,9 +1,11 @@
 
 // This file is now deprecated in favor of using the Lovable Supabase integration
 // Import the supabase client from '@/integrations/supabase/client' instead
-import { supabase, Category, Transaction } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
+import type { Category, Transaction } from '@/integrations/supabase/client';
 
-export { supabase, Category, Transaction };
+export { supabase };
+export type { Category, Transaction };
 
 export type User = {
   id: string;

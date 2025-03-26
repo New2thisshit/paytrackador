@@ -20,7 +20,12 @@ export const useCategories = (userId: string | undefined) => {
         .order('name');
         
       if (error) throw error;
-      return data || [];
+      
+      // Ensure the data conforms to the Category type
+      return (data as any[]).map(item => ({
+        ...item,
+        type: item.type as 'income' | 'expense'
+      })) as Category[];
     },
     enabled: !!userId,
   });
