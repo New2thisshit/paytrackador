@@ -1,44 +1,14 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowDownIcon, ArrowUpIcon, DollarSignIcon, TrendingDownIcon, TrendingUpIcon, BarChart2Icon, LineChartIcon, CalendarIcon } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 import { cn } from "@/lib/utils";
-
-// Sample data for charts
-const monthlyData = [
-  { name: "Jan", income: 8500, expenses: 6200 },
-  { name: "Feb", income: 7800, expenses: 6800 },
-  { name: "Mar", income: 9200, expenses: 7500 },
-  { name: "Apr", income: 8700, expenses: 7100 },
-  { name: "May", income: 10500, expenses: 8200 },
-  { name: "Jun", income: 9800, expenses: 7800 },
-  { name: "Jul", income: 11200, expenses: 8900 },
-  { name: "Aug", income: 10800, expenses: 8400 },
-  { name: "Sep", income: 11500, expenses: 8700 },
-];
-
-const weeklyData = [
-  { name: "Mon", income: 2100, expenses: 1500 },
-  { name: "Tue", income: 1800, expenses: 1200 },
-  { name: "Wed", income: 2300, expenses: 1900 },
-  { name: "Thu", income: 2000, expenses: 1600 },
-  { name: "Fri", income: 2500, expenses: 2100 },
-  { name: "Sat", income: 1500, expenses: 900 },
-  { name: "Sun", income: 1200, expenses: 700 },
-];
-
-const categoryData = [
-  { name: "Rent", value: 2200 },
-  { name: "Utilities", value: 450 },
-  { name: "Insurance", value: 350 },
-  { name: "Supplies", value: 650 },
-  { name: "Software", value: 780 },
-  { name: "Marketing", value: 950 },
-  { name: "Misc", value: 520 },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { useAnalytics, AnalyticsPeriod } from "@/hooks/useAnalytics";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Custom tooltip for the chart
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -91,17 +61,16 @@ const CategoryTooltip = ({ active, payload, label }: any) => {
 };
 
 const AnalyticsSummary = () => {
-  const totalIncome = monthlyData.reduce((sum, month) => sum + month.income, 0);
-  const totalExpenses = monthlyData.reduce((sum, month) => sum + month.expenses, 0);
-  const netIncome = totalIncome - totalExpenses;
-  
-  const previousTotalIncome = totalIncome * 0.9; // Simulated previous period
-  const previousTotalExpenses = totalExpenses * 0.85; // Simulated previous period
-  const previousNetIncome = previousTotalIncome - previousTotalExpenses;
-  
-  const incomeChange = ((totalIncome - previousTotalIncome) / previousTotalIncome) * 100;
-  const expensesChange = ((totalExpenses - previousTotalExpenses) / previousTotalExpenses) * 100;
-  const netIncomeChange = ((netIncome - previousNetIncome) / previousNetIncome) * 100;
+  const { user } = useAuth();
+  const [period, setPeriod] = useState<AnalyticsPeriod>('monthly');
+  const { 
+    summary,
+    monthlyData,
+    weeklyData,
+    categoryData,
+    isLoading,
+    error
+  } = useAnalytics(user?.id);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -153,85 +122,103 @@ const AnalyticsSummary = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card className="bg-muted/10 border shadow-none">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="rounded-full p-2 bg-finance-income/10">
-                  <ArrowDownIcon className="h-4 w-4 text-finance-income" />
-                </div>
-                <div className={cn(
-                  "text-xs font-medium flex items-center",
-                  incomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
-                )}>
-                  {incomeChange >= 0 ? (
-                    <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
-                  ) : (
-                    <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  {formatPercentage(Math.abs(incomeChange))}
-                </div>
-              </div>
-              
-              <div className="mt-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Total Income</h3>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(totalIncome)}</p>
-              </div>
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="rounded-full p-2 bg-finance-income/10">
+                      <ArrowDownIcon className="h-4 w-4 text-finance-income" />
+                    </div>
+                    <div className={cn(
+                      "text-xs font-medium flex items-center",
+                      summary.incomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
+                    )}>
+                      {summary.incomeChange >= 0 ? (
+                        <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
+                      ) : (
+                        <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      {formatPercentage(Math.abs(summary.incomeChange))}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <h3 className="text-sm font-medium text-muted-foreground">Total Income</h3>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(summary.totalIncome)}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
           
           <Card className="bg-muted/10 border shadow-none">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="rounded-full p-2 bg-finance-expense/10">
-                  <ArrowUpIcon className="h-4 w-4 text-finance-expense" />
-                </div>
-                <div className={cn(
-                  "text-xs font-medium flex items-center",
-                  expensesChange <= 0 ? "text-finance-income" : "text-finance-expense"
-                )}>
-                  {expensesChange <= 0 ? (
-                    <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
-                  ) : (
-                    <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  {formatPercentage(Math.abs(expensesChange))}
-                </div>
-              </div>
-              
-              <div className="mt-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Total Expenses</h3>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(totalExpenses)}</p>
-              </div>
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="rounded-full p-2 bg-finance-expense/10">
+                      <ArrowUpIcon className="h-4 w-4 text-finance-expense" />
+                    </div>
+                    <div className={cn(
+                      "text-xs font-medium flex items-center",
+                      summary.expensesChange <= 0 ? "text-finance-income" : "text-finance-expense"
+                    )}>
+                      {summary.expensesChange <= 0 ? (
+                        <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
+                      ) : (
+                        <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      {formatPercentage(Math.abs(summary.expensesChange))}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <h3 className="text-sm font-medium text-muted-foreground">Total Expenses</h3>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(summary.totalExpenses)}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
           
           <Card className="bg-muted/10 border shadow-none">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="rounded-full p-2 bg-primary/10">
-                  <DollarSignIcon className="h-4 w-4 text-primary" />
-                </div>
-                <div className={cn(
-                  "text-xs font-medium flex items-center",
-                  netIncomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
-                )}>
-                  {netIncomeChange >= 0 ? (
-                    <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
-                  ) : (
-                    <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  {formatPercentage(Math.abs(netIncomeChange))}
-                </div>
-              </div>
-              
-              <div className="mt-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Net Income</h3>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(netIncome)}</p>
-              </div>
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="rounded-full p-2 bg-primary/10">
+                      <DollarSignIcon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className={cn(
+                      "text-xs font-medium flex items-center",
+                      summary.netIncomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
+                    )}>
+                      {summary.netIncomeChange >= 0 ? (
+                        <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
+                      ) : (
+                        <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      {formatPercentage(Math.abs(summary.netIncomeChange))}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <h3 className="text-sm font-medium text-muted-foreground">Net Income</h3>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(summary.netIncome)}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
         
         {/* Charts */}
-        <Tabs defaultValue="monthly" className="mt-6">
+        <Tabs defaultValue="monthly" className="mt-6" onValueChange={(value) => setPeriod(value as AnalyticsPeriod)}>
           <div className="flex items-center justify-between mb-4">
             <TabsList>
               <TabsTrigger value="weekly">Weekly</TabsTrigger>
@@ -252,105 +239,113 @@ const AnalyticsSummary = () => {
           
           <TabsContent value="monthly" className="mt-0 animate-fade-in">
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={monthlyData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0A84FF" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#0A84FF" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF453A" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#FF453A" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={{ stroke: "#f5f5f5" }}
-                  />
-                  <YAxis 
-                    tickFormatter={(value) => `$${value / 1000}k`}
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="income" 
-                    stroke="#0A84FF" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorIncome)" 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="expenses" 
-                    stroke="#FF453A" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorExpenses)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {isLoading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={monthlyData}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0A84FF" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#0A84FF" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#FF453A" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#FF453A" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={{ stroke: "#f5f5f5" }}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `$${value / 1000}k`}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="income" 
+                      stroke="#0A84FF" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorIncome)" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="expenses" 
+                      stroke="#FF453A" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorExpenses)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </TabsContent>
           
           <TabsContent value="weekly" className="mt-0 animate-fade-in">
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={weeklyData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0A84FF" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#0A84FF" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF453A" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#FF453A" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={{ stroke: "#f5f5f5" }}
-                  />
-                  <YAxis 
-                    tickFormatter={(value) => `$${value / 1000}k`}
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="income" 
-                    stroke="#0A84FF" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorIncome)" 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="expenses" 
-                    stroke="#FF453A" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorExpenses)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {isLoading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={weeklyData}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0A84FF" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#0A84FF" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#FF453A" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#FF453A" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={{ stroke: "#f5f5f5" }}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `$${value / 1000}k`}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="income" 
+                      stroke="#0A84FF" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorIncome)" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="expenses" 
+                      stroke="#FF453A" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorExpenses)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -359,32 +354,40 @@ const AnalyticsSummary = () => {
         <div className="mt-8">
           <h3 className="text-sm font-medium mb-4">Expense Breakdown</h3>
           <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={categoryData}
-                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={true} vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={{ stroke: "#f5f5f5" }}
-                />
-                <YAxis 
-                  tickFormatter={(value) => `$${value}`}
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip content={<CategoryTooltip />} />
-                <Bar 
-                  dataKey="value" 
-                  fill="#0A84FF" 
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <Skeleton className="h-full w-full" />
+            ) : categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={categoryData}
+                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={true} vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#f5f5f5" }}
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => `$${value}`}
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<CategoryTooltip />} />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#0A84FF" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-muted-foreground">No expense data available</p>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
