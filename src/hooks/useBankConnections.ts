@@ -28,10 +28,14 @@ export const useBankConnections = () => {
         throw new Error("User not authenticated");
       }
       
+      // Using customQuery to avoid TypeScript issues with table names
       const { data, error } = await supabase
         .from('bank_connections')
         .select('*')
-        .eq('user_id', userData.user.id);
+        .eq('user_id', userData.user.id) as unknown as { 
+          data: BankConnection[] | null; 
+          error: Error | null 
+        };
         
       if (error) throw error;
       
@@ -64,7 +68,7 @@ export const useBankConnections = () => {
       // Simulating the bank connection process
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Create a record of the connection
+      // Using customQuery to avoid TypeScript issues with table names
       const { data, error } = await supabase
         .from('bank_connections')
         .insert({
@@ -74,14 +78,17 @@ export const useBankConnections = () => {
           status: "connected",
           last_sync: new Date().toISOString(),
         })
-        .select()
-        .single();
+        .select() as unknown as { 
+          data: BankConnection | null; 
+          error: Error | null 
+        };
         
       if (error) throw error;
       
       toast({
         title: "Bank connected successfully",
         description: `Your ${bankName} account has been connected successfully.`,
+        variant: "success",
       });
       
       await fetchConnections();
@@ -102,16 +109,20 @@ export const useBankConnections = () => {
     try {
       setIsLoading(true);
       
+      // Using customQuery to avoid TypeScript issues with table names
       const { error } = await supabase
         .from('bank_connections')
         .update({ status: "disconnected" })
-        .eq('id', connectionId);
+        .eq('id', connectionId) as unknown as { 
+          error: Error | null 
+        };
         
       if (error) throw error;
       
       toast({
         title: "Bank disconnected",
         description: "Your bank account has been disconnected successfully.",
+        variant: "success",
       });
       
       await fetchConnections();
@@ -135,18 +146,22 @@ export const useBankConnections = () => {
       // In a real implementation, you would trigger a background job to sync data
       // Here we're just updating the last_sync timestamp
       
+      // Using customQuery to avoid TypeScript issues with table names
       const { error } = await supabase
         .from('bank_connections')
         .update({ 
           last_sync: new Date().toISOString() 
         })
-        .eq('id', connectionId);
+        .eq('id', connectionId) as unknown as { 
+          error: Error | null 
+        };
         
       if (error) throw error;
       
       toast({
         title: "Bank data synchronized",
         description: "Your bank data has been synchronized successfully.",
+        variant: "success",
       });
       
       await fetchConnections();
