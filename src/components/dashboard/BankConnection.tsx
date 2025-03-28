@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge"; // Add Badge import
+import { Badge } from "@/components/ui/badge"; // Ensure Badge is imported
 import { 
   ArrowRightIcon, 
   BuildingIcon, 
@@ -46,6 +46,22 @@ const banks = [
   {
     id: "citi",
     name: "Citibank",
+    logo: "/placeholder.svg",
+  },
+  // South African Banks
+  {
+    id: "nedbank",
+    name: "Nedbank",
+    logo: "/placeholder.svg",
+  },
+  {
+    id: "standardbank",
+    name: "Standard Bank",
+    logo: "/placeholder.svg",
+  },
+  {
+    id: "fnb",
+    name: "First National Bank (FNB)",
     logo: "/placeholder.svg",
   },
 ];
