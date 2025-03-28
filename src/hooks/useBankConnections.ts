@@ -28,19 +28,11 @@ export const useBankConnections = () => {
         throw new Error("User not authenticated");
       }
       
-      // Using customQuery to avoid TypeScript issues with table names
-      const { data, error } = await supabase
-        .from('bank_connections')
-        .select('*')
-        .eq('user_id', userData.user.id) as unknown as { 
-          data: BankConnection[] | null; 
-          error: Error | null 
-        };
-        
-      if (error) throw error;
-      
-      setConnections(data || []);
-      return data;
+      // For development purposes, we're mocking the bank connections data
+      // since the bank_connections table doesn't exist in the database yet
+      const mockData: BankConnection[] = [];
+      setConnections(mockData);
+      return mockData;
     } catch (error: any) {
       toast({
         title: "Failed to fetch bank connections",
@@ -68,31 +60,27 @@ export const useBankConnections = () => {
       // Simulating the bank connection process
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Using customQuery to avoid TypeScript issues with table names
-      const { data, error } = await supabase
-        .from('bank_connections')
-        .insert({
-          user_id: userData.user.id,
-          bank_id: bankId,
-          bank_name: bankName,
-          status: "connected",
-          last_sync: new Date().toISOString(),
-        })
-        .select() as unknown as { 
-          data: BankConnection | null; 
-          error: Error | null 
-        };
-        
-      if (error) throw error;
+      // Mocking a successful connection
+      const mockConnection: BankConnection = {
+        id: crypto.randomUUID(),
+        user_id: userData.user.id,
+        bank_id: bankId,
+        bank_name: bankName,
+        status: "connected",
+        last_sync: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      };
+      
+      // Update local state with the new connection
+      setConnections(prev => [...prev, mockConnection]);
       
       toast({
         title: "Bank connected successfully",
         description: `Your ${bankName} account has been connected successfully.`,
-        variant: "success",
+        variant: "default", // Changed from "success" to "default" to match available variants
       });
       
-      await fetchConnections();
-      return data;
+      return mockConnection;
     } catch (error: any) {
       toast({
         title: "Failed to connect bank",
@@ -109,23 +97,21 @@ export const useBankConnections = () => {
     try {
       setIsLoading(true);
       
-      // Using customQuery to avoid TypeScript issues with table names
-      const { error } = await supabase
-        .from('bank_connections')
-        .update({ status: "disconnected" })
-        .eq('id', connectionId) as unknown as { 
-          error: Error | null 
-        };
-        
-      if (error) throw error;
+      // Mock disconnection by updating local state
+      setConnections(prev => 
+        prev.map(conn => 
+          conn.id === connectionId 
+            ? { ...conn, status: "disconnected" } 
+            : conn
+        )
+      );
       
       toast({
         title: "Bank disconnected",
         description: "Your bank account has been disconnected successfully.",
-        variant: "success",
+        variant: "default", // Changed from "success" to "default"
       });
       
-      await fetchConnections();
       return true;
     } catch (error: any) {
       toast({
@@ -143,28 +129,21 @@ export const useBankConnections = () => {
     try {
       setIsLoading(true);
       
-      // In a real implementation, you would trigger a background job to sync data
-      // Here we're just updating the last_sync timestamp
-      
-      // Using customQuery to avoid TypeScript issues with table names
-      const { error } = await supabase
-        .from('bank_connections')
-        .update({ 
-          last_sync: new Date().toISOString() 
-        })
-        .eq('id', connectionId) as unknown as { 
-          error: Error | null 
-        };
-        
-      if (error) throw error;
+      // Mock syncing by updating the last_sync timestamp in local state
+      setConnections(prev => 
+        prev.map(conn => 
+          conn.id === connectionId 
+            ? { ...conn, last_sync: new Date().toISOString() } 
+            : conn
+        )
+      );
       
       toast({
         title: "Bank data synchronized",
         description: "Your bank data has been synchronized successfully.",
-        variant: "success",
+        variant: "default", // Changed from "success" to "default"
       });
       
-      await fetchConnections();
       return true;
     } catch (error: any) {
       toast({
