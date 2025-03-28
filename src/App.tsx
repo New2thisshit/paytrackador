@@ -10,9 +10,10 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import ConnectBank from "./pages/ConnectBank";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import { useEffect, useState } from "react";
-import { supabase } from "./lib/supabase";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
@@ -69,7 +70,7 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/transactions" element={<Dashboard />} />
               <Route path="/analytics" element={<Dashboard />} />
-              <Route path="/connect-bank" element={<Notifications />} />
+              <Route path="/connect-bank" element={<ConnectBank />} />
               <Route path="/settings" element={<Dashboard />} />
             </Route>
             
