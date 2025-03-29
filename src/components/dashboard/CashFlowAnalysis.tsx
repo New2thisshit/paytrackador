@@ -1,305 +1,267 @@
 
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Transaction } from "@/lib/supabase";
-import { Badge } from "@/components/ui/badge";
-import { 
-  ChartContainer, 
-  ChartLegend, 
-  ChartLegendContent, 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from "@/components/ui/chart";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import { 
-  CalendarIcon, 
-  TrendingUpIcon,
-  TrendingDownIcon,
-  CircleDollarSignIcon
-} from "lucide-react";
-import { formatCurrency } from "@/utils/formatters";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Button } from "@/components/ui/button";
 import { DateRange } from "@/hooks/useDateRange";
-import { addDays, differenceInDays, format, parseISO, startOfDay } from "date-fns";
+import { Transaction } from "@/lib/supabase";
+import { ArrowDownIcon, ArrowUpIcon, TrendingUpIcon } from "lucide-react";
+import { useMediaQuery } from "@/hooks/use-mobile";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, isWithinInterval, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isSameMonth } from "date-fns";
+import { formatCurrency } from "@/utils/formatters";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface CashFlowData {
+  date: string;
+  inflow: number;
+  outflow: number;
+  balance: number;
+}
 
 interface CashFlowAnalysisProps {
   transactions: Transaction[];
   dateRange: DateRange;
 }
 
+// Custom tooltip component for cash flow chart
+const CashFlowTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-background border rounded-lg shadow-sm p-3">
+        <p className="font-medium">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={`item-${index}`} className="flex items-center mt-1">
+            <div 
+              className="w-3 h-3 rounded-full mr-2" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-xs text-muted-foreground">{entry.name}: </span>
+            <span className="text-xs font-medium ml-1">
+              {formatCurrency(entry.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 const CashFlowAnalysis = ({ transactions, dateRange }: CashFlowAnalysisProps) => {
-  // Generate cash flow forecast
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const [view, setView] = React.useState<"weekly" | "monthly">("weekly");
+  
   const cashFlowData = useMemo(() => {
-    if (!transactions.length) return [];
+    if (!transactions?.length) return [];
     
-    // Sort transactions by date
-    const sortedTransactions = [...transactions].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    const { startDate, endDate } = dateRange;
     
-    // Calculate number of days to forecast
-    const startDate = startOfDay(dateRange.startDate);
-    const endDate = startOfDay(dateRange.endDate);
-    const daysInRange = Math.max(differenceInDays(endDate, startDate), 1);
+    let intervalData: CashFlowData[] = [];
+    let intervals: Date[] = [];
     
-    // Create a datapoint for each day
-    let currentBalance = 0;
-    const cashFlowByDay = [];
+    // Create intervals based on view type
+    if (view === "weekly") {
+      intervals = eachWeekOfInterval(
+        { start: startDate, end: endDate },
+        { weekStartsOn: 1 }
+      );
+    } else {
+      intervals = eachMonthOfInterval(
+        { start: startDate, end: endDate }
+      );
+    }
     
-    // Calculate initial balance from past transactions
-    const pastTransactions = sortedTransactions.filter(
-      t => new Date(t.date) < startDate
-    );
-    currentBalance = pastTransactions.reduce((sum, t) => sum + t.amount, 0);
+    // Add the end date to make sure we include the final period
+    intervals.push(new Date(endDate));
     
-    // Generate data for each day in range
-    for (let i = 0; i <= daysInRange; i++) {
-      const currentDate = addDays(startDate, i);
-      const formattedDate = format(currentDate, 'MMM dd');
+    // Generate data for each interval
+    for (let i = 0; i < intervals.length - 1; i++) {
+      const periodStart = intervals[i];
+      const periodEnd = view === "weekly" 
+        ? endOfWeek(intervals[i], { weekStartsOn: 1 })
+        : endOfMonth(intervals[i]);
       
-      // Find transactions for this day
-      const dayTransactions = sortedTransactions.filter(t => {
-        const transactionDate = startOfDay(new Date(t.date));
-        return transactionDate.getTime() === currentDate.getTime();
+      // Don't go past the selected end date
+      const effectiveEnd = periodEnd > endDate ? endDate : periodEnd;
+      
+      // Skip if this period is outside our date range
+      if (periodStart > endDate || effectiveEnd < startDate) continue;
+      
+      // Filter transactions for this period
+      const periodTransactions = transactions.filter(t => {
+        const txDate = parseISO(t.date);
+        return isWithinInterval(txDate, { 
+          start: periodStart, 
+          end: effectiveEnd 
+        });
       });
       
-      // Calculate inflow and outflow for the day
-      const inflow = dayTransactions
+      // Calculate inflow, outflow, and balance
+      const inflow = periodTransactions
         .filter(t => t.amount > 0)
         .reduce((sum, t) => sum + t.amount, 0);
         
-      const outflow = dayTransactions
+      const outflow = periodTransactions
         .filter(t => t.amount < 0)
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
       
-      // Update balance
-      const dayTotal = dayTransactions.reduce((sum, t) => sum + t.amount, 0);
-      currentBalance += dayTotal;
+      const balance = inflow - outflow;
       
-      cashFlowByDay.push({
-        date: formattedDate,
-        balance: Number(currentBalance.toFixed(2)),
-        inflow: Number(inflow.toFixed(2)),
-        outflow: Number(outflow.toFixed(2))
+      // Format date label based on view
+      const dateLabel = view === "weekly"
+        ? `${format(periodStart, 'MMM d')}-${format(effectiveEnd, 'MMM d')}`
+        : format(periodStart, 'MMM yyyy');
+      
+      intervalData.push({
+        date: dateLabel,
+        inflow,
+        outflow,
+        balance
       });
     }
     
-    // Add forecasted days (up to 7 additional days)
-    const forecastDays = 7;
+    return intervalData;
+  }, [transactions, dateRange, view]);
+
+  // If we don't have enough data for monthly view, default to weekly
+  React.useEffect(() => {
+    if (cashFlowData.length <= 2 && view === "monthly") {
+      setView("weekly");
+    }
+  }, [cashFlowData, view]);
+
+  // Determine if we should show both tabs or just weekly
+  const shouldShowMonthlyTab = useMemo(() => {
+    if (!dateRange) return false;
     
-    // Calculate average daily change
-    const totalChange = cashFlowByDay.length >= 2 
-      ? cashFlowByDay[cashFlowByDay.length - 1].balance - cashFlowByDay[0].balance 
-      : 0;
-    const averageDailyChange = cashFlowByDay.length >= 2 
-      ? totalChange / cashFlowByDay.length 
-      : 0;
-    
-    let lastBalance = cashFlowByDay.length 
-      ? cashFlowByDay[cashFlowByDay.length - 1].balance 
-      : 0;
-    
-    // Add forecasted days
-    for (let i = 1; i <= forecastDays; i++) {
-      const forecastDate = addDays(endDate, i);
-      const formattedDate = format(forecastDate, 'MMM dd');
-      lastBalance += averageDailyChange;
+    const { startDate, endDate } = dateRange;
+    const monthsDiff = 
+      (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+      endDate.getMonth() - startDate.getMonth();
       
-      cashFlowByDay.push({
-        date: formattedDate,
-        balance: Number(lastBalance.toFixed(2)),
-        inflow: null,
-        outflow: null,
-        isForecast: true
-      });
-    }
-    
-    return cashFlowByDay;
-  }, [transactions, dateRange]);
-  
-  // Determine overall cash flow trend
-  const cashFlowTrend = useMemo(() => {
-    if (cashFlowData.length < 2) return "neutral";
-    
-    const startBalance = cashFlowData[0].balance;
-    const endBalance = cashFlowData[Math.floor(cashFlowData.length * 0.75)].balance;
-    const difference = endBalance - startBalance;
-    
-    if (difference > 0) return "positive";
-    if (difference < 0) return "negative";
-    return "neutral";
-  }, [cashFlowData]);
-  
-  // Chart configs for cash flow
-  const chartConfig = {
-    balance: {
-      label: "Balance",
-      theme: {
-        light: "#0284c7",
-        dark: "#38bdf8"
-      }
-    },
-    inflow: {
-      label: "Income",
-      theme: {
-        light: "#16a34a",
-        dark: "#4ade80"
-      }
-    },
-    outflow: {
-      label: "Expense",
-      theme: {
-        light: "#dc2626",
-        dark: "#f87171"
-      }
-    }
-  };
-  
+    return monthsDiff >= 2;
+  }, [dateRange]);
+
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader>
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <CircleDollarSignIcon className="h-5 w-5 mr-2 text-primary" />
-            <CardTitle>Cash Flow Forecast</CardTitle>
-          </div>
-          <Badge 
-            className={
-              cashFlowTrend === "positive" 
-                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 border-green-200 dark:border-green-800" 
-                : cashFlowTrend === "negative"
-                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100 border-red-200 dark:border-red-800"
-                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-            }
-          >
-            {cashFlowTrend === "positive" && (
-              <>
-                <TrendingUpIcon className="h-3 w-3 mr-1" />
-                Upward Trend
-              </>
-            )}
-            {cashFlowTrend === "negative" && (
-              <>
-                <TrendingDownIcon className="h-3 w-3 mr-1" />
-                Downward Trend
-              </>
-            )}
-            {cashFlowTrend === "neutral" && (
-              <>
-                <CalendarIcon className="h-3 w-3 mr-1" />
-                Stable
-              </>
-            )}
-          </Badge>
-        </div>
-        <CardDescription>
-          Account balance projection based on transaction history
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="h-[300px] mt-4">
-          <ChartContainer 
-            config={chartConfig}
-            className="h-full w-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart 
-                data={cashFlowData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0284c7" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#0284c7" stopOpacity={0.01}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#888" opacity={0.1} />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  tickFormatter={(value) => `$${Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={50}
-                />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <ChartTooltipContent
-                          className="bg-card border border-border"
-                        >
-                          <div className="px-2 py-1">
-                            <p className="text-sm font-medium">{label}</p>
-                            <p className="text-sm font-mono">
-                              Balance: {formatCurrency(data.balance)}
-                            </p>
-                            {data.inflow !== null && (
-                              <p className="text-sm font-mono text-finance-income">
-                                Inflow: +{formatCurrency(data.inflow)}
-                              </p>
-                            )}
-                            {data.outflow !== null && (
-                              <p className="text-sm font-mono text-finance-expense">
-                                Outflow: -{formatCurrency(data.outflow)}
-                              </p>
-                            )}
-                            {data.isForecast && (
-                              <p className="text-xs text-muted-foreground mt-1 italic">Forecasted</p>
-                            )}
-                          </div>
-                        </ChartTooltipContent>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="balance" 
-                  stroke="#0284c7" 
-                  strokeWidth={2}
-                  fill="url(#colorBalance)" 
-                  dot={{ r: 1 }}
-                  activeDot={{ r: 4, strokeWidth: 1 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-            <ChartLegend>
-              <ChartLegendContent className="mt-3" />
-            </ChartLegend>
-          </ChartContainer>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div className="rounded-lg bg-green-50 dark:bg-green-950 p-3 border border-green-100 dark:border-green-900">
-            <p className="text-xs text-green-700 dark:text-green-300 font-medium">Next 7 Days - Incoming</p>
-            <p className="text-lg font-mono font-semibold text-green-700 dark:text-green-300 mt-1">
-              {formatCurrency(
-                transactions
-                  .filter(t => t.amount > 0 && new Date(t.date) > new Date() && new Date(t.date) < addDays(new Date(), 7))
-                  .reduce((sum, t) => sum + t.amount, 0)
-              )}
-            </p>
+          <div>
+            <CardTitle className="flex items-center">
+              <TrendingUpIcon className="h-5 w-5 mr-2 text-primary" />
+              Cash Flow Analysis
+            </CardTitle>
+            <CardDescription>
+              Income vs. Expenses over time
+            </CardDescription>
           </div>
           
-          <div className="rounded-lg bg-red-50 dark:bg-red-950 p-3 border border-red-100 dark:border-red-900">
-            <p className="text-xs text-red-700 dark:text-red-300 font-medium">Next 7 Days - Outgoing</p>
-            <p className="text-lg font-mono font-semibold text-red-700 dark:text-red-300 mt-1">
-              {formatCurrency(
-                Math.abs(
-                  transactions
-                    .filter(t => t.amount < 0 && new Date(t.date) > new Date() && new Date(t.date) < addDays(new Date(), 7))
-                    .reduce((sum, t) => sum + t.amount, 0)
-                )
-              )}
-            </p>
+          {shouldShowMonthlyTab && (
+            <Tabs value={view} onValueChange={(v) => setView(v as "weekly" | "monthly")}>
+              <TabsList>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="flex items-center">
+            <span className="w-3 h-3 rounded-full bg-finance-income mr-2" />
+            <span className="text-xs">Income</span>
           </div>
+          <div className="flex items-center">
+            <span className="w-3 h-3 rounded-full bg-finance-expense mr-2" />
+            <span className="text-xs">Expenses</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-3 h-3 rounded-full bg-primary mr-2" />
+            <span className="text-xs">Net Flow</span>
+          </div>
+        </div>
+        
+        <div className="h-[300px] w-full">
+          {!transactions ? (
+            <Skeleton className="h-full w-full" />
+          ) : cashFlowData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={cashFlowData}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 20,
+                  bottom: 40,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  height={40}
+                  tickLine={false}
+                  angle={-45}
+                  textAnchor="end"
+                />
+                <YAxis 
+                  tickFormatter={(value) => `$${Math.abs(value) >= 1000 ? `${Math.round(value/1000)}k` : value}`}
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip content={<CashFlowTooltip />} />
+                <Bar dataKey="inflow" name="Income" fill="#0A84FF" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="outflow" name="Expenses" fill="#FF453A" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="balance" name="Net" fill="#34C759" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-muted-foreground">No data available for the selected period</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-3 gap-4 mt-6">
+          <Card className="shadow-none border bg-muted/10">
+            <CardContent className="p-4">
+              <div className="flex items-center mb-2">
+                <ArrowDownIcon className="h-4 w-4 text-finance-income mr-2" />
+                <span className="text-sm font-medium">Total Income</span>
+              </div>
+              <p className="text-xl font-bold">
+                {formatCurrency(cashFlowData.reduce((sum, data) => sum + data.inflow, 0))}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-none border bg-muted/10">
+            <CardContent className="p-4">
+              <div className="flex items-center mb-2">
+                <ArrowUpIcon className="h-4 w-4 text-finance-expense mr-2" />
+                <span className="text-sm font-medium">Total Expenses</span>
+              </div>
+              <p className="text-xl font-bold">
+                {formatCurrency(cashFlowData.reduce((sum, data) => sum + data.outflow, 0))}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-none border bg-muted/10">
+            <CardContent className="p-4">
+              <div className="flex items-center mb-2">
+                <TrendingUpIcon className="h-4 w-4 text-primary mr-2" />
+                <span className="text-sm font-medium">Net Cash Flow</span>
+              </div>
+              <p className="text-xl font-bold">
+                {formatCurrency(cashFlowData.reduce((sum, data) => sum + data.balance, 0))}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </CardContent>
     </Card>
