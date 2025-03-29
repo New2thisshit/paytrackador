@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DateRange } from "@/hooks/useDateRange";
 import { Transaction } from "@/lib/supabase";
 import { ArrowDownIcon, ArrowUpIcon, TrendingUpIcon } from "lucide-react";
-import { useMediaQuery } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isWithinInterval, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isSameMonth } from "date-fns";
 import { formatCurrency } from "@/utils/formatters";
@@ -49,7 +48,7 @@ const CashFlowTooltip = ({ active, payload, label }: any) => {
 };
 
 const CashFlowAnalysis = ({ transactions, dateRange }: CashFlowAnalysisProps) => {
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useIsMobile();
   const [view, setView] = React.useState<"weekly" | "monthly">("weekly");
   
   const cashFlowData = useMemo(() => {
