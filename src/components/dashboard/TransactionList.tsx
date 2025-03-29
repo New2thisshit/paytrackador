@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { DateRange } from "@/hooks/useDateRange";
+import { parseISO, isWithinInterval } from "date-fns";
 
 // Sample transaction data
 const transactions = [
@@ -107,9 +108,10 @@ const formatDate = (dateString: string) => {
 interface TransactionListProps {
   limit?: number;
   showHeader?: boolean;
+  dateRange?: DateRange;
 }
 
-const TransactionList = ({ limit, showHeader = true }: TransactionListProps) => {
+const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -125,10 +127,22 @@ const TransactionList = ({ limit, showHeader = true }: TransactionListProps) => 
   
   // Filter and sort transactions
   const filteredTransactions = transactions
-    .filter(transaction => 
-      transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.category.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter(transaction => {
+      // First filter by date range if provided
+      if (dateRange) {
+        const transactionDate = parseISO(transaction.date);
+        if (!isWithinInterval(transactionDate, { 
+          start: dateRange.startDate, 
+          end: dateRange.endDate 
+        })) {
+          return false;
+        }
+      }
+      
+      // Then filter by search query
+      return transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
+    })
     .sort((a, b) => {
       if (sortBy === "amount") {
         return sortDirection === "asc" 

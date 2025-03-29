@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useMemo } from 'react';
-import { startOfMonth, endOfMonth, subMonths, format, parseISO, isWithinInterval } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, format, parseISO, isWithinInterval, subDays } from 'date-fns';
 import { Transaction } from '@/lib/supabase';
 
 export type DateRangeOption = '7days' | '30days' | 'thisMonth' | 'lastMonth' | 'custom';
@@ -36,13 +36,13 @@ export const useDateRange = () => {
     };
 
     const last7Days = {
-      startDate: subMonths(today, 0, -7),
+      startDate: subDays(today, 7),
       endDate: today,
       label: 'Last 7 Days',
     };
 
     const last30Days = {
-      startDate: subMonths(today, 0, -30),
+      startDate: subDays(today, 30),
       endDate: today,
       label: 'Last 30 Days',
     };
