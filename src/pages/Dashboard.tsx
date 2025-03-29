@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import AnalyticsSummary from "@/components/dashboard/AnalyticsSummary";
 import TransactionList from "@/components/dashboard/TransactionList";
 import NotificationCenter from "@/components/dashboard/NotificationCenter";
@@ -8,40 +8,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircleIcon, ArrowRightIcon, BuildingIcon, CalendarIcon, LucideIcon, PieChartIcon, TrendingUpIcon } from "lucide-react";
-
-// Sample recent transactions
-const recentTransactions = [
-  {
-    id: "1",
-    date: "2023-09-25",
-    description: "Marketing Expenses",
-    amount: -350.75,
-    category: "Marketing",
-    status: "pending",
-  },
-  {
-    id: "2",
-    date: "2023-09-20",
-    description: "Client Payment - ABC Inc.",
-    amount: 1250.00,
-    category: "Income",
-    status: "completed",
-  },
-  {
-    id: "3",
-    date: "2023-09-15",
-    description: "Software Subscription",
-    amount: -49.99,
-    category: "Software",
-    status: "pending",
-  },
-];
+import { 
+  AlertCircleIcon, 
+  ArrowRightIcon, 
+  BuildingIcon, 
+  CalendarIcon, 
+  DownloadIcon,
+  PieChartIcon, 
+  TrendingUpIcon 
+} from "lucide-react";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { useDateRange, DateRangeOption } from "@/hooks/useDateRange";
+import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/hooks/useAuth";
+import { exportToCSV, generateFinancialReport } from "@/utils/exportUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface QuickActionProps {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: React.FC<{ className?: string }>;
   href: string;
 }
 
@@ -69,6 +55,65 @@ const QuickAction = ({ title, description, icon: Icon, href }: QuickActionProps)
 };
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { transactions, isLoading } = useTransactions(user?.id);
+  const { 
+    currentDateRange, 
+    selectedOption, 
+    setSelectedOption, 
+    filterTransactionsByDateRange,
+    setCustomDateRange
+  } = useDateRange();
+  
+  const [filteredTransactions, setFilteredTransactions] = useState(transactions || []);
+  
+  useEffect(() => {
+    if (transactions) {
+      setFilteredTransactions(filterTransactionsByDateRange(transactions));
+    }
+  }, [transactions, filterTransactionsByDateRange]);
+  
+  const handleDateRangeChange = (range: { from: Date; to: Date }) => {
+    setCustomDateRange(range.from, range.to);
+  };
+  
+  const handleOptionChange = (option: DateRangeOption) => {
+    setSelectedOption(option);
+  };
+  
+  const handleExportReport = () => {
+    if (!filteredTransactions.length) {
+      toast({
+        title: "No data to export",
+        description: "There are no transactions in the selected date range.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const report = generateFinancialReport(
+      filteredTransactions, 
+      currentDateRange
+    );
+    
+    exportToCSV(
+      filteredTransactions, 
+      `financial_report_${currentDateRange.label.replace(/ /g, '_')}`,
+      currentDateRange
+    );
+    
+    toast({
+      title: "Report exported",
+      description: `${filteredTransactions.length} transactions exported for ${currentDateRange.label}`,
+    });
+  };
+  
+  // Get the 3 most recent transactions for the dashboard
+  const recentTransactions = filteredTransactions
+    .slice(0, 3)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -79,12 +124,20 @@ const Dashboard = () => {
           </p>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Button variant="outline">
-            <CalendarIcon className="h-4 w-4 mr-2" />
-            Sept 1 - 30, 2023
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2">
+          <DateRangePicker
+            dateRange={{
+              from: currentDateRange.startDate,
+              to: currentDateRange.endDate,
+            }}
+            onDateRangeChange={handleDateRangeChange}
+            onOptionChange={handleOptionChange}
+            selectedOption={selectedOption}
+          />
+          <Button onClick={handleExportReport}>
+            <DownloadIcon className="h-4 w-4 mr-2" />
+            Export Report
           </Button>
-          <Button>Export Report</Button>
         </div>
       </div>
       
@@ -98,7 +151,7 @@ const Dashboard = () => {
       </Alert>
       
       {/* Analytics */}
-      <AnalyticsSummary />
+      <AnalyticsSummary dateRange={currentDateRange} />
       
       {/* Quick Actions and Recent Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -145,26 +198,47 @@ const Dashboard = () => {
                     Latest financial activity
                   </CardDescription>
                 </div>
-                <Badge className="hover:bg-primary/20">
-                  New transactions
-                </Badge>
+                {recentTransactions.length > 0 && (
+                  <Badge className="hover:bg-primary/20">
+                    {recentTransactions.length} transactions
+                  </Badge>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {recentTransactions.map(transaction => (
-                <TransactionCard key={transaction.id} transaction={transaction} />
-              ))}
-              
-              <Button variant="outline" className="w-full mt-2" asChild>
-                <a href="/transactions">
-                  View All Transactions
-                  <ArrowRightIcon className="ml-1.5 h-4 w-4" />
-                </a>
-              </Button>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 rounded-md bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : recentTransactions.length > 0 ? (
+                <>
+                  {recentTransactions.map(transaction => (
+                    <TransactionCard key={transaction.id} transaction={transaction} />
+                  ))}
+                  
+                  <Button variant="outline" className="w-full mt-2" asChild>
+                    <a href="/transactions">
+                      View All Transactions
+                      <ArrowRightIcon className="ml-1.5 h-4 w-4" />
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-muted-foreground">No transactions in selected period</p>
+                  <Button variant="outline" className="mt-2" asChild>
+                    <a href="/transactions">
+                      Add Transaction
+                    </a>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
           
-          <TransactionList limit={5} />
+          <TransactionList limit={5} dateRange={currentDateRange} />
         </div>
       </div>
     </div>

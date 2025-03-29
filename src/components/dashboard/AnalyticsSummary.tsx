@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,8 +8,11 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnalytics, AnalyticsPeriod } from "@/hooks/useAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DateRange } from "@/hooks/useDateRange";
+import { format, subDays, isWithinInterval, parseISO, eachDayOfInterval } from "date-fns";
+import { Transaction } from "@/lib/supabase";
+import { useTransactions } from "@/hooks/useTransactions";
 
-// Custom tooltip for the chart
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -60,17 +62,143 @@ const CategoryTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const AnalyticsSummary = () => {
+interface AnalyticsSummaryProps {
+  dateRange?: DateRange;
+}
+
+const AnalyticsSummary = ({ dateRange }: AnalyticsSummaryProps) => {
   const { user } = useAuth();
   const [period, setPeriod] = useState<AnalyticsPeriod>('monthly');
+  const { transactions, isLoading: isLoadingTransactions } = useTransactions(user?.id);
   const { 
-    summary,
-    monthlyData,
-    weeklyData,
-    categoryData,
-    isLoading,
+    summary: analyticsSummary,
+    monthlyData: analyticsMonthlyData,
+    weeklyData: analyticsWeeklyData,
+    categoryData: analyticsCategoryData,
+    isLoading: isLoadingAnalytics,
     error
   } = useAnalytics(user?.id);
+  
+  const [filteredData, setFilteredData] = useState({
+    summary: analyticsSummary,
+    monthlyData: analyticsMonthlyData,
+    weeklyData: analyticsWeeklyData,
+    categoryData: analyticsCategoryData
+  });
+  
+  useEffect(() => {
+    if (!transactions || isLoadingTransactions || !dateRange) return;
+    
+    const filteredTransactions = transactions.filter(transaction => {
+      const transactionDate = parseISO(transaction.date);
+      return isWithinInterval(transactionDate, { 
+        start: dateRange.startDate, 
+        end: dateRange.endDate 
+      });
+    });
+    
+    const income = filteredTransactions
+      .filter(t => t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const expenses = filteredTransactions
+      .filter(t => t.amount < 0)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      
+    const netIncome = income - expenses;
+    
+    const categoryMap = new Map<string, number>();
+    
+    filteredTransactions
+      .filter(t => t.amount < 0)
+      .forEach(transaction => {
+        const category = transaction.category;
+        const currentValue = categoryMap.get(category) || 0;
+        categoryMap.set(category, currentValue + Math.abs(transaction.amount));
+      });
+    
+    const categoryData = Array.from(categoryMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 7);
+    
+    let monthlyData = [];
+    let weeklyData = [];
+    
+    if (period === 'monthly') {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      
+      const monthlyGrouped = filteredTransactions.reduce((acc, transaction) => {
+        const date = parseISO(transaction.date);
+        const month = date.getMonth();
+        
+        if (!acc[month]) {
+          acc[month] = { income: 0, expenses: 0 };
+        }
+        
+        if (transaction.amount > 0) {
+          acc[month].income += transaction.amount;
+        } else {
+          acc[month].expenses += Math.abs(transaction.amount);
+        }
+        
+        return acc;
+      }, {} as Record<number, { income: number, expenses: number }>);
+      
+      monthlyData = Object.entries(monthlyGrouped).map(([month, data]) => ({
+        name: months[parseInt(month)],
+        income: data.income,
+        expenses: data.expenses
+      }));
+    } else {
+      const days = eachDayOfInterval({
+        start: dateRange.startDate,
+        end: dateRange.endDate
+      });
+      
+      const dailyData = days.reduce((acc, day) => {
+        const dayString = format(day, 'yyyy-MM-dd');
+        acc[dayString] = { income: 0, expenses: 0 };
+        return acc;
+      }, {} as Record<string, { income: number, expenses: number }>);
+      
+      filteredTransactions.forEach(transaction => {
+        const date = format(parseISO(transaction.date), 'yyyy-MM-dd');
+        
+        if (!dailyData[date]) return;
+        
+        if (transaction.amount > 0) {
+          dailyData[date].income += transaction.amount;
+        } else {
+          dailyData[date].expenses += Math.abs(transaction.amount);
+        }
+      });
+      
+      const last7Days = Object.entries(dailyData)
+        .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+        .slice(-7);
+      
+      weeklyData = last7Days.map(([date, data]) => ({
+        name: format(new Date(date), 'EEE'),
+        income: data.income,
+        expenses: data.expenses
+      }));
+    }
+    
+    setFilteredData({
+      summary: {
+        totalIncome: income,
+        totalExpenses: expenses,
+        netIncome,
+        incomeChange: 0,
+        expensesChange: 0,
+        netIncomeChange: 0
+      },
+      monthlyData,
+      weeklyData,
+      categoryData
+    });
+  }, [transactions, isLoadingTransactions, dateRange, period]);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -88,6 +216,17 @@ const AnalyticsSummary = () => {
     }).format(value / 100);
   };
 
+  const isLoading = isLoadingTransactions || isLoadingAnalytics;
+  
+  const displayData = dateRange 
+    ? filteredData 
+    : {
+        summary: analyticsSummary,
+        monthlyData: analyticsMonthlyData,
+        weeklyData: analyticsWeeklyData,
+        categoryData: analyticsCategoryData
+      };
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -98,27 +237,36 @@ const AnalyticsSummary = () => {
               Financial Overview
             </CardTitle>
             <CardDescription>
-              Track your financial performance
+              {dateRange ? `Data for ${dateRange.label}` : 'Track your financial performance'}
             </CardDescription>
           </div>
           
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" className="h-8">
               <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
-              Last 30 Days
+              {dateRange?.label || 'All Time'}
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <LineChartIcon className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button 
+              variant={period === 'monthly' ? "default" : "ghost"} 
+              size="icon" 
+              className="h-8 w-8"
+              onClick={() => setPeriod('monthly')}
+            >
               <BarChart2Icon className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant={period === 'weekly' ? "default" : "ghost"} 
+              size="icon" 
+              className="h-8 w-8"
+              onClick={() => setPeriod('weekly')}
+            >
+              <LineChartIcon className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
       
       <CardContent>
-        {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card className="bg-muted/10 border shadow-none">
             <CardContent className="p-4">
@@ -132,20 +280,20 @@ const AnalyticsSummary = () => {
                     </div>
                     <div className={cn(
                       "text-xs font-medium flex items-center",
-                      summary.incomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
+                      displayData.summary.incomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
                     )}>
-                      {summary.incomeChange >= 0 ? (
+                      {displayData.summary.incomeChange >= 0 ? (
                         <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
                       ) : (
                         <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {formatPercentage(Math.abs(summary.incomeChange))}
+                      {formatPercentage(Math.abs(displayData.summary.incomeChange))}
                     </div>
                   </div>
                   
                   <div className="mt-3">
                     <h3 className="text-sm font-medium text-muted-foreground">Total Income</h3>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(summary.totalIncome)}</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(displayData.summary.totalIncome)}</p>
                   </div>
                 </>
               )}
@@ -164,20 +312,20 @@ const AnalyticsSummary = () => {
                     </div>
                     <div className={cn(
                       "text-xs font-medium flex items-center",
-                      summary.expensesChange <= 0 ? "text-finance-income" : "text-finance-expense"
+                      displayData.summary.expensesChange <= 0 ? "text-finance-income" : "text-finance-expense"
                     )}>
-                      {summary.expensesChange <= 0 ? (
+                      {displayData.summary.expensesChange <= 0 ? (
                         <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
                       ) : (
                         <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {formatPercentage(Math.abs(summary.expensesChange))}
+                      {formatPercentage(Math.abs(displayData.summary.expensesChange))}
                     </div>
                   </div>
                   
                   <div className="mt-3">
                     <h3 className="text-sm font-medium text-muted-foreground">Total Expenses</h3>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(summary.totalExpenses)}</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(displayData.summary.totalExpenses)}</p>
                   </div>
                 </>
               )}
@@ -196,20 +344,20 @@ const AnalyticsSummary = () => {
                     </div>
                     <div className={cn(
                       "text-xs font-medium flex items-center",
-                      summary.netIncomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
+                      displayData.summary.netIncomeChange >= 0 ? "text-finance-income" : "text-finance-expense"
                     )}>
-                      {summary.netIncomeChange >= 0 ? (
+                      {displayData.summary.netIncomeChange >= 0 ? (
                         <TrendingUpIcon className="h-3.5 w-3.5 mr-1" />
                       ) : (
                         <TrendingDownIcon className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {formatPercentage(Math.abs(summary.netIncomeChange))}
+                      {formatPercentage(Math.abs(displayData.summary.netIncomeChange))}
                     </div>
                   </div>
                   
                   <div className="mt-3">
                     <h3 className="text-sm font-medium text-muted-foreground">Net Income</h3>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(summary.netIncome)}</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(displayData.summary.netIncome)}</p>
                   </div>
                 </>
               )}
@@ -217,8 +365,7 @@ const AnalyticsSummary = () => {
           </Card>
         </div>
         
-        {/* Charts */}
-        <Tabs defaultValue="monthly" className="mt-6" onValueChange={(value) => setPeriod(value as AnalyticsPeriod)}>
+        <Tabs defaultValue="monthly" value={period} className="mt-6" onValueChange={(value) => setPeriod(value as AnalyticsPeriod)}>
           <div className="flex items-center justify-between mb-4">
             <TabsList>
               <TabsTrigger value="weekly">Weekly</TabsTrigger>
@@ -241,10 +388,10 @@ const AnalyticsSummary = () => {
             <div className="h-[300px] w-full">
               {isLoading ? (
                 <Skeleton className="h-full w-full" />
-              ) : (
+              ) : displayData.monthlyData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
-                    data={monthlyData}
+                    data={displayData.monthlyData}
                     margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                   >
                     <defs>
@@ -289,6 +436,10 @@ const AnalyticsSummary = () => {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-muted-foreground">No data available for the selected period</p>
+                </div>
               )}
             </div>
           </TabsContent>
@@ -297,10 +448,10 @@ const AnalyticsSummary = () => {
             <div className="h-[300px] w-full">
               {isLoading ? (
                 <Skeleton className="h-full w-full" />
-              ) : (
+              ) : displayData.weeklyData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
-                    data={weeklyData}
+                    data={displayData.weeklyData}
                     margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                   >
                     <defs>
@@ -345,21 +496,24 @@ const AnalyticsSummary = () => {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-muted-foreground">No data available for the selected period</p>
+                </div>
               )}
             </div>
           </TabsContent>
         </Tabs>
         
-        {/* Expense Breakdown */}
         <div className="mt-8">
           <h3 className="text-sm font-medium mb-4">Expense Breakdown</h3>
           <div className="h-[200px]">
             {isLoading ? (
               <Skeleton className="h-full w-full" />
-            ) : categoryData.length > 0 ? (
+            ) : displayData.categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={categoryData}
+                  data={displayData.categoryData}
                   margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={true} vertical={false} />

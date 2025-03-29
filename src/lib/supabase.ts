@@ -1,4 +1,3 @@
-
 // This file is now deprecated in favor of using the Lovable Supabase integration
 // Import the supabase client from '@/integrations/supabase/client' instead
 import { supabase } from '@/integrations/supabase/client';
@@ -30,3 +29,6 @@ export type Account = {
   balance: number;
   created_at: string;
 };
+
+// Add success to the variant options
+export type ToastVariant = "default" | "destructive" | "success";
