@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   ChevronDownIcon,
+  DownloadIcon,
   FilterIcon,
   SearchIcon,
   SlidersIcon,
@@ -28,66 +30,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DateRange } from "@/hooks/useDateRange";
 import { parseISO, isWithinInterval } from "date-fns";
-
-// Sample transaction data
-const transactions = [
-  {
-    id: "1",
-    date: "2023-09-01",
-    description: "Office Supplies",
-    amount: -142.55,
-    category: "Office",
-    status: "completed",
-  },
-  {
-    id: "2",
-    date: "2023-09-03",
-    description: "Client Payment - XYZ Corp",
-    amount: 3500.00,
-    category: "Income",
-    status: "completed",
-  },
-  {
-    id: "3",
-    date: "2023-09-05",
-    description: "Monthly Rent",
-    amount: -2200.00,
-    category: "Rent",
-    status: "completed",
-  },
-  {
-    id: "4",
-    date: "2023-09-10",
-    description: "Utility Bills",
-    amount: -218.45,
-    category: "Utilities",
-    status: "completed",
-  },
-  {
-    id: "5",
-    date: "2023-09-15",
-    description: "Software Subscription",
-    amount: -49.99,
-    category: "Software",
-    status: "pending",
-  },
-  {
-    id: "6",
-    date: "2023-09-20",
-    description: "Client Payment - ABC Inc.",
-    amount: 1250.00,
-    category: "Income",
-    status: "completed",
-  },
-  {
-    id: "7",
-    date: "2023-09-25",
-    description: "Marketing Expenses",
-    amount: -350.75,
-    category: "Marketing",
-    status: "pending",
-  },
-];
+import { Transaction } from "@/lib/supabase";
+import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/hooks/useAuth";
+import { exportToCSV } from "@/utils/exportUtils";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -112,9 +58,12 @@ interface TransactionListProps {
 }
 
 const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionListProps) => {
+  const { user } = useAuth();
+  const { transactions, isLoading } = useTransactions(user?.id);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [filterType, setFilterType] = useState<"all" | "income" | "expense" | "pending">("all");
   
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -125,39 +74,55 @@ const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionLis
     }
   };
   
+  const handleExport = () => {
+    if (!transactions || transactions.length === 0) return;
+    
+    // Filter transactions first before exporting
+    const dataToExport = filteredTransactions;
+    
+    // Export to CSV with the date range in the filename
+    exportToCSV(dataToExport, "transactions", dateRange);
+  };
+  
   // Filter and sort transactions
   const filteredTransactions = transactions
-    .filter(transaction => {
-      // First filter by date range if provided
-      if (dateRange) {
-        const transactionDate = parseISO(transaction.date);
-        if (!isWithinInterval(transactionDate, { 
-          start: dateRange.startDate, 
-          end: dateRange.endDate 
-        })) {
-          return false;
+    ? transactions.filter(transaction => {
+        // First filter by date range if provided
+        if (dateRange) {
+          const transactionDate = parseISO(transaction.date);
+          if (!isWithinInterval(transactionDate, { 
+            start: dateRange.startDate, 
+            end: dateRange.endDate 
+          })) {
+            return false;
+          }
         }
-      }
-      
-      // Then filter by search query
-      return transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
-    })
-    .sort((a, b) => {
-      if (sortBy === "amount") {
-        return sortDirection === "asc" 
-          ? a.amount - b.amount
-          : b.amount - a.amount;
-      } else if (sortBy === "date") {
-        return sortDirection === "asc"
-          ? new Date(a.date).getTime() - new Date(b.date).getTime()
-          : new Date(b.date).getTime() - new Date(a.date).getTime();
-      } else {
-        return sortDirection === "asc"
-          ? a[sortBy as keyof typeof a] > b[sortBy as keyof typeof b] ? 1 : -1
-          : a[sortBy as keyof typeof a] < b[sortBy as keyof typeof b] ? 1 : -1;
-      }
-    });
+        
+        // Then filter by transaction type if needed
+        if (filterType === "income" && transaction.amount <= 0) return false;
+        if (filterType === "expense" && transaction.amount > 0) return false;
+        if (filterType === "pending" && transaction.status !== "pending") return false;
+        
+        // Then filter by search query
+        return transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+      .sort((a, b) => {
+        if (sortBy === "amount") {
+          return sortDirection === "asc" 
+            ? a.amount - b.amount
+            : b.amount - a.amount;
+        } else if (sortBy === "date") {
+          return sortDirection === "asc"
+            ? new Date(a.date).getTime() - new Date(b.date).getTime()
+            : new Date(b.date).getTime() - new Date(a.date).getTime();
+        } else {
+          return sortDirection === "asc"
+            ? a[sortBy as keyof typeof a] > b[sortBy as keyof typeof b] ? 1 : -1
+            : a[sortBy as keyof typeof a] < b[sortBy as keyof typeof b] ? 1 : -1;
+        }
+      })
+    : [];
   
   // Limit the number of transactions if specified
   const displayedTransactions = limit 
@@ -194,12 +159,16 @@ const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionLis
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">
-                  <DropdownMenuItem>All Transactions</DropdownMenuItem>
-                  <DropdownMenuItem>Income Only</DropdownMenuItem>
-                  <DropdownMenuItem>Expenses Only</DropdownMenuItem>
-                  <DropdownMenuItem>Pending Transactions</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("all")}>All Transactions</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("income")}>Income Only</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("expense")}>Expenses Only</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("pending")}>Pending Transactions</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              <Button size="icon" variant="outline" onClick={handleExport} title="Export to CSV">
+                <DownloadIcon className="h-4 w-4" />
+              </Button>
               
               <Button size="icon" variant="outline">
                 <SlidersIcon className="h-4 w-4" />
@@ -210,95 +179,105 @@ const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionLis
       )}
       
       <CardContent>
-        <div className="rounded-md border overflow-hidden animate-fade-in">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort("date")}
-                >
-                  <div className="flex items-center">
-                    Date
-                    {sortBy === "date" && (
-                      sortDirection === "asc" 
-                        ? <ArrowUpIcon className="ml-1 h-3 w-3" /> 
-                        : <ArrowDownIcon className="ml-1 h-3 w-3" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort("description")}
-                >
-                  <div className="flex items-center">
-                    Description
-                    {sortBy === "description" && (
-                      sortDirection === "asc" 
-                        ? <ArrowUpIcon className="ml-1 h-3 w-3" /> 
-                        : <ArrowDownIcon className="ml-1 h-3 w-3" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Category</TableHead>
-                <TableHead 
-                  className="text-right cursor-pointer"
-                  onClick={() => handleSort("amount")}
-                >
-                  <div className="flex items-center justify-end">
-                    Amount
-                    {sortBy === "amount" && (
-                      sortDirection === "asc" 
-                        ? <ArrowUpIcon className="ml-1 h-3 w-3" /> 
-                        : <ArrowDownIcon className="ml-1 h-3 w-3" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayedTransactions.length > 0 ? (
-                displayedTransactions.map((transaction) => (
-                  <TableRow key={transaction.id} className="group transition-colors hover:bg-muted/30">
-                    <TableCell className="font-mono">{formatDate(transaction.date)}</TableCell>
-                    <TableCell className="font-medium">{transaction.description}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className="text-xs">
-                        {transaction.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-right font-medium tabular-nums",
-                      transaction.amount > 0 ? "text-finance-income" : "text-finance-expense"
-                    )}>
-                      {formatCurrency(transaction.amount)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge 
-                        variant={transaction.status === "completed" ? "default" : "outline"}
-                        className={cn(
-                          "text-xs",
-                          transaction.status === "pending" && "text-finance-pending border-finance-pending"
-                        )}
-                      >
-                        {transaction.status === "completed" ? "Completed" : "Pending"}
-                      </Badge>
+        {isLoading ? (
+          <div className="py-8 flex justify-center">
+            <div className="animate-pulse text-center">
+              <p className="text-muted-foreground">Loading transactions...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border overflow-hidden animate-fade-in">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort("date")}
+                  >
+                    <div className="flex items-center">
+                      Date
+                      {sortBy === "date" && (
+                        sortDirection === "asc" 
+                          ? <ArrowUpIcon className="ml-1 h-3 w-3" /> 
+                          : <ArrowDownIcon className="ml-1 h-3 w-3" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort("description")}
+                  >
+                    <div className="flex items-center">
+                      Description
+                      {sortBy === "description" && (
+                        sortDirection === "asc" 
+                          ? <ArrowUpIcon className="ml-1 h-3 w-3" /> 
+                          : <ArrowDownIcon className="ml-1 h-3 w-3" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Category</TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer"
+                    onClick={() => handleSort("amount")}
+                  >
+                    <div className="flex items-center justify-end">
+                      Amount
+                      {sortBy === "amount" && (
+                        sortDirection === "asc" 
+                          ? <ArrowUpIcon className="ml-1 h-3 w-3" /> 
+                          : <ArrowDownIcon className="ml-1 h-3 w-3" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayedTransactions.length > 0 ? (
+                  displayedTransactions.map((transaction) => (
+                    <TableRow key={transaction.id} className="group transition-colors hover:bg-muted/30">
+                      <TableCell className="font-mono">{formatDate(transaction.date)}</TableCell>
+                      <TableCell className="font-medium">{transaction.description}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="text-xs">
+                          {transaction.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-right font-medium tabular-nums",
+                        transaction.amount > 0 ? "text-finance-income" : "text-finance-expense"
+                      )}>
+                        {formatCurrency(transaction.amount)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge 
+                          variant={transaction.status === "completed" ? "default" : "outline"}
+                          className={cn(
+                            "text-xs",
+                            transaction.status === "pending" && "text-finance-pending border-finance-pending"
+                          )}
+                        >
+                          {transaction.status === "completed" ? "Completed" : "Pending"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                      {transactions && transactions.length > 0 
+                        ? "No matching transactions found"
+                        : "No transactions found"}
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                    No transactions found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
         
-        {!limit && (
+        {!limit && displayedTransactions.length > 0 && (
           <div className="mt-4 flex items-center justify-between">
             <Button variant="outline" size="sm">
               Previous
@@ -306,7 +285,7 @@ const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionLis
             <div className="text-sm text-muted-foreground">
               Showing <span className="font-medium">1</span> to{" "}
               <span className="font-medium">{displayedTransactions.length}</span> of{" "}
-              <span className="font-medium">{transactions.length}</span> transactions
+              <span className="font-medium">{transactions ? transactions.length : 0}</span> transactions
             </div>
             <Button variant="outline" size="sm">
               Next
@@ -314,7 +293,7 @@ const TransactionList = ({ limit, showHeader = true, dateRange }: TransactionLis
           </div>
         )}
         
-        {limit && filteredTransactions.length > limit && (
+        {limit && transactions && transactions.length > limit && (
           <div className="mt-4 text-center">
             <Button variant="outline" size="sm">
               View All Transactions

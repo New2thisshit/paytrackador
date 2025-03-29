@@ -25,10 +25,6 @@ export const useTransactions = (userId: string | undefined) => {
       // Process the transactions to ensure the sign of the amount is correct
       // For display purposes, negative numbers represent expenses, positive numbers represent income
       return (data as any[]).map(item => {
-        // Determine if this is an income or expense based on the category or other metadata
-        // This depends on your data structure, but typically a negative amount indicates an expense
-        const isExpense = item.amount < 0;
-        
         return {
           ...item,
           // Ensure proper type casting
