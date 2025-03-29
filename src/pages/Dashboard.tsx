@@ -3,6 +3,10 @@ import React, { useState, useEffect } from "react";
 import AnalyticsSummary from "@/components/dashboard/AnalyticsSummary";
 import TransactionList from "@/components/dashboard/TransactionList";
 import NotificationCenter from "@/components/dashboard/NotificationCenter";
+import CategoryAnalysisChart from "@/components/dashboard/CategoryAnalysisChart";
+import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
+import CashFlowAnalysis from "@/components/dashboard/CashFlowAnalysis";
+import VendorAnalysis from "@/components/dashboard/VendorAnalysis";
 import TransactionCard from "@/components/ui/TransactionCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -141,17 +145,20 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Alerts */}
-      <Alert variant="destructive" className="bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-900">
-        <AlertCircleIcon className="h-4 w-4" />
-        <AlertTitle>Attention Required</AlertTitle>
-        <AlertDescription>
-          High-value transactions detected. Please review and verify in the notifications section.
-        </AlertDescription>
-      </Alert>
-      
-      {/* Analytics */}
+      {/* Analytics Summary */}
       <AnalyticsSummary dateRange={currentDateRange} />
+      
+      {/* Charts and Analysis Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CategoryAnalysisChart transactions={filteredTransactions} />
+        <CashFlowAnalysis transactions={filteredTransactions} dateRange={currentDateRange} />
+      </div>
+      
+      {/* Vendor Analysis and Anomaly Detection */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <VendorAnalysis transactions={filteredTransactions} />
+        <AnomalyDetection transactions={filteredTransactions} />
+      </div>
       
       {/* Quick Actions and Recent Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
