@@ -2,7 +2,7 @@
 import React from "react";
 import { formatCurrency } from "@/utils/formatters";
 
-interface CashFlowTooltipProps {
+export interface CashFlowTooltipProps {
   active: boolean;
   payload: any[];
   label: string;

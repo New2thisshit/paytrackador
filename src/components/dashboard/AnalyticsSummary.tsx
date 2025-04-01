@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart2Icon, LineChartIcon, CalendarIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useAnalytics, AnalyticsPeriod } from "@/hooks/useAnalytics";
+import { useAnalytics, AnalyticsPeriod } from "@/hooks/analytics/useAnalytics";
 import { DateRange } from "@/hooks/useDateRange";
-import { format, isWithinInterval, parseISO, eachDayOfInterval, eachMonthOfInterval } from "date-fns";
+import { format, isWithinInterval, parseISO } from "date-fns";
 import { useTransactions } from "@/hooks/useTransactions";
 import { AnalyticsSummaryCard } from "./analytics/AnalyticsSummaryCard";
 import { AnalyticsPeriodTabs } from "./analytics/AnalyticsPeriodTabs";
