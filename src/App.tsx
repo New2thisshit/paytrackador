@@ -12,6 +12,7 @@ import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import ConnectBank from "./pages/ConnectBank";
 import Transactions from "./pages/Transactions";
+import Analytics from "./pages/Analytics";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import { useEffect, useState } from "react";
 import { supabase } from "./integrations/supabase/client";
@@ -70,7 +71,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/transactions" element={<Transactions />} />
-              <Route path="/analytics" element={<Dashboard />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/connect-bank" element={<ConnectBank />} />
               <Route path="/settings" element={<Dashboard />} />
             </Route>
