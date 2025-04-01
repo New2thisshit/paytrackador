@@ -1,6 +1,5 @@
 
 import React, { useState } from "react";
-import { DateRange } from "@/hooks/useDateRange";
 import { useAuth } from "@/hooks/useAuth";
 import { useTransactions } from "@/hooks/useTransactions";
 import { Transaction } from "@/lib/supabase";
@@ -8,11 +7,12 @@ import { exportToCSV } from "@/utils/exportUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { useDateRange } from "@/hooks/useDateRange";
+import { useDateRange, DateRange, DateRangeOption } from "@/hooks/useDateRange";
 import { Download, FileText, Filter } from "lucide-react";
 import TransactionsTable from "@/components/transactions/TransactionsTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import TransactionFilters from "@/components/transactions/TransactionFilters";
+import { DateRange as DayPickerDateRange } from "react-day-picker";
 
 const Transactions = () => {
   const { user } = useAuth();
@@ -79,8 +79,14 @@ const Transactions = () => {
     }
   };
 
-  // Handle date change
-  const handleDateRangeChange = (range: DateRange) => {
+  // Convert between DateRange types
+  const toDayPickerDateRange = (dateRange: DateRange): DayPickerDateRange => ({
+    from: dateRange.startDate,
+    to: dateRange.endDate
+  });
+
+  // Handle date change from the date picker component
+  const handleDateRangeChange = (range: DayPickerDateRange) => {
     if (range.from && range.to) {
       setCustomDateRange(range.from, range.to);
     }
