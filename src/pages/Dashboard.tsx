@@ -13,6 +13,11 @@ import { useTransactions } from "@/hooks/useTransactions";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardQuickActions from "@/components/dashboard/DashboardQuickActions";
 import RecentTransactionsCard from "@/components/dashboard/RecentTransactionsCard";
+import { SummaryMetricsPanel } from "@/components/dashboard/overview/SummaryMetricsPanel";
+import { AccountBalanceChart } from "@/components/dashboard/overview/AccountBalanceChart";
+import { TransactionTypeChart } from "@/components/dashboard/overview/TransactionTypeChart";
+import { useSummaryMetrics } from "@/hooks/analytics/useSummaryMetrics";
+import { useAccountBalance } from "@/hooks/useAccountBalance";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -37,6 +42,25 @@ const Dashboard = () => {
     setCustomDateRange(range.from, range.to);
   };
 
+  // Get summary metrics for the current date range
+  const summaryMetrics = useSummaryMetrics(
+    transactions,
+    currentDateRange.startDate,
+    currentDateRange.endDate
+  );
+
+  // Get account balance data
+  const { 
+    balanceData, 
+    currentBalance, 
+    projectedBalance 
+  } = useAccountBalance(
+    transactions,
+    currentDateRange.startDate,
+    currentDateRange.endDate,
+    5000 // starting balance - this could be fetched from an API or set by user
+  );
+
   return (
     <div className="space-y-8">
       <DashboardHeader 
@@ -47,20 +71,40 @@ const Dashboard = () => {
         filteredTransactions={filteredTransactions}
       />
       
-      {/* Analytics Summary */}
-      <AnalyticsSummary dateRange={currentDateRange} />
+      {/* Summary Metrics Panel */}
+      <SummaryMetricsPanel 
+        metrics={summaryMetrics}
+        isLoading={isLoading}
+      />
+      
+      {/* Account Balance Chart */}
+      <AccountBalanceChart 
+        data={balanceData}
+        currentBalance={currentBalance}
+        projectedBalance={projectedBalance}
+        isLoading={isLoading}
+      />
       
       {/* Charts and Analysis Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CategoryAnalysisChart transactions={filteredTransactions} />
-        <CashFlowAnalysis transactions={filteredTransactions} dateRange={currentDateRange} />
+        <TransactionTypeChart 
+          data={summaryMetrics.transactionsByType}
+          isLoading={isLoading}
+        />
       </div>
+      
+      {/* Analytics Summary */}
+      <AnalyticsSummary dateRange={currentDateRange} />
       
       {/* Vendor Analysis and Anomaly Detection */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <VendorAnalysis transactions={filteredTransactions} />
         <AnomalyDetection transactions={filteredTransactions} />
       </div>
+      
+      {/* Cash Flow Analysis */}
+      <CashFlowAnalysis transactions={filteredTransactions} dateRange={currentDateRange} />
       
       {/* Quick Actions and Recent Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
