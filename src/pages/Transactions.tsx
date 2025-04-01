@@ -20,8 +20,11 @@ const Transactions = () => {
     selectedOption, 
     setSelectedOption, 
     currentDateRange, 
-    setCustomDateRange 
+    setCustomDateRange,
+    filterTransactionsByDateRange
   } = useDateRange();
+  
+  // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
@@ -35,35 +38,41 @@ const Transactions = () => {
     error 
   } = useTransactions(user?.id);
 
-  // Apply date range filtering
-  const filteredByDate = transactions?.filter(transaction => {
-    if (!currentDateRange) return true;
-    
-    const transactionDate = new Date(transaction.date);
-    return (
-      transactionDate >= currentDateRange.startDate &&
-      transactionDate <= currentDateRange.endDate
-    );
-  }) || [];
+  // Filter transactions
+  const filteredTransactions = React.useMemo(() => {
+    if (!transactions) return [];
 
-  // Apply additional filters
-  const filteredTransactions = filteredByDate.filter(transaction => {
-    // Status filter
-    if (filterStatus && transaction.status !== filterStatus) return false;
+    // First filter by date range using the hook's built-in function
+    const dateFilteredTransactions = filterTransactionsByDateRange(transactions);
     
-    // Category filter
-    if (filterCategory && transaction.category !== filterCategory) return false;
-    
-    // Amount range filter
-    const amount = Math.abs(transaction.amount);
-    if (filterAmountMin && amount < parseFloat(filterAmountMin)) return false;
-    if (filterAmountMax && amount > parseFloat(filterAmountMax)) return false;
-    
-    return true;
-  });
+    // Then apply additional filters
+    return dateFilteredTransactions.filter(transaction => {
+      // Status filter
+      if (filterStatus && transaction.status !== filterStatus) return false;
+      
+      // Category filter
+      if (filterCategory && transaction.category !== filterCategory) return false;
+      
+      // Amount range filter
+      const amount = Math.abs(transaction.amount);
+      if (filterAmountMin && amount < parseFloat(filterAmountMin)) return false;
+      if (filterAmountMax && amount > parseFloat(filterAmountMax)) return false;
+      
+      return true;
+    });
+  }, [
+    transactions, 
+    filterTransactionsByDateRange, 
+    filterStatus, 
+    filterCategory, 
+    filterAmountMin, 
+    filterAmountMax
+  ]);
 
   // Get unique categories
-  const categories = [...new Set(transactions?.map(t => t.category) || [])];
+  const categories = React.useMemo(() => {
+    return [...new Set(transactions?.map(t => t.category) || [])];
+  }, [transactions]);
   
   // Handle export
   const handleExport = () => {
@@ -78,12 +87,6 @@ const Transactions = () => {
       );
     }
   };
-
-  // Convert between DateRange types
-  const toDayPickerDateRange = (dateRange: DateRange): DayPickerDateRange => ({
-    from: dateRange.startDate,
-    to: dateRange.endDate
-  });
 
   // Handle date change from the date picker component
   const handleDateRangeChange = (range: DayPickerDateRange) => {
