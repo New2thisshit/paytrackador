@@ -15,7 +15,7 @@ export type AnalyticsData = {
   error: Error | null;
 };
 
-export { AnalyticsSummary, ChartDataItem, CategoryDataItem };
+export type { AnalyticsSummary, ChartDataItem, CategoryDataItem };
 
 export const useAnalytics = (userId: string | undefined): AnalyticsData => {
   const { transactions, isLoading, error } = useTransactions(userId);

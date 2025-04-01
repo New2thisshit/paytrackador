@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { BarChart2Icon, LineChartIcon, CalendarIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnalytics, AnalyticsPeriod } from "@/hooks/analytics/useAnalytics";
 import { DateRange } from "@/hooks/useDateRange";
-import { format, isWithinInterval, parseISO } from "date-fns";
+import { format, isWithinInterval, parseISO, eachDayOfInterval } from "date-fns";
 import { useTransactions } from "@/hooks/useTransactions";
 import { AnalyticsSummaryCard } from "./analytics/AnalyticsSummaryCard";
 import { AnalyticsPeriodTabs } from "./analytics/AnalyticsPeriodTabs";
@@ -105,7 +106,7 @@ const AnalyticsSummary = ({ dateRange }: AnalyticsSummaryProps) => {
         end: dateRange.endDate
       });
       
-      const dailyData = days.reduce((acc, day) => {
+      const dailyData: Record<string, { income: number, expenses: number }> = days.reduce((acc, day) => {
         const dayString = format(day, 'yyyy-MM-dd');
         acc[dayString] = { income: 0, expenses: 0 };
         return acc;
