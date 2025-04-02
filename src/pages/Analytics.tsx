@@ -63,6 +63,23 @@ const Analytics = () => {
   
   const isPageLoading = isLoading || transactionsLoading;
 
+  // Format functions for the summary cards
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatPercentage = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value / 100);
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -111,19 +128,30 @@ const Analytics = () => {
               value={summaryMetrics.totalOutgoing}
               change={summaryMetrics.outgoingChange}
               changeLabel={summaryMetrics.outgoingChange <= 0 ? "decrease" : "increase"}
-              icon={BarChart3}
+              icon="expense"
+              formatCurrency={formatCurrency}
+              formatPercentage={formatPercentage}
+              isLoading={isPageLoading}
               changeDirection="inverted"
             />
             <AnalyticsSummaryCard 
               title="Transaction Count"
               value={summaryMetrics.transactionCount}
+              change={0}
+              icon="net"
+              formatCurrency={(value) => value.toString()}
+              formatPercentage={formatPercentage}
+              isLoading={isPageLoading}
               decimals={0}
-              icon={BarChart3}
             />
             <AnalyticsSummaryCard 
               title="Avg Payment Size"
               value={summaryMetrics.averageTransactionSize}
-              icon={TrendingUp}
+              change={0}
+              icon="income"
+              formatCurrency={formatCurrency}
+              formatPercentage={formatPercentage}
+              isLoading={isPageLoading}
             />
           </div>
           
